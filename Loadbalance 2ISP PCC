@@ -1,0 +1,33 @@
+
+# Load Balancing -> PCC (PER CONNECTION CLASIFIER)
+
+/ip firewall address-list
+add address=192.168.0.0/16 list=LOCAL-IP comment="LoadBalance PCC by JSI-Tech Solution"
+add address=172.16.0.0/12 list=LOCAL-IP 
+add address=10.0.0.0/8 list=LOCAL-IP 
+
+/ip firewall nat
+add chain=srcnat out-interface="ether1-ISP1" action=masquerade comment="LoadBalance PCC by JSI-Tech Solution"
+add chain=srcnat out-interface="ether2-ISP2" action=masquerade 
+
+
+/ip firewall mangle
+add action=accept chain=prerouting dst-address-list=LOCAL-IP src-address-list=LOCAL-IP comment="LoadBalance PCC by JSI-Tech Solution"
+add action=accept chain=postrouting dst-address-list=LOCAL-IP src-address-list=LOCAL-IP 
+add action=accept chain=forward dst-address-list=LOCAL-IP src-address-list=LOCAL-IP 
+add action=accept chain=input dst-address-list=LOCAL-IP src-address-list=LOCAL-IP 
+add action=accept chain=output dst-address-list=LOCAL-IP src-address-list=LOCAL-IP 
+add action=mark-connection chain=input in-interface="ether1-ISP1" new-connection-mark="cm-ether1-ISP1" passthrough=yes 
+add action=mark-connection chain=input in-interface="ether2-ISP2" new-connection-mark="cm-ether2-ISP2" passthrough=yes 
+add action=mark-routing chain=output connection-mark="cm-ether1-ISP1" new-routing-mark="to-ether1-ISP1" passthrough=yes 
+add action=mark-routing chain=output connection-mark="cm-ether2-ISP2" new-routing-mark="to-ether2-ISP2" passthrough=yes 
+add action=mark-connection chain=prerouting dst-address-type=!local new-connection-mark="cm-ether1-ISP1" passthrough=yes per-connection-classifier=both-addresses-and-ports:2/0 dst-address-list=!LOCAL-IP src-address-list=LOCAL-IP 
+add action=mark-connection chain=prerouting dst-address-type=!local new-connection-mark="cm-ether2-ISP2" passthrough=yes per-connection-classifier=both-addresses-and-ports:2/1 dst-address-list=!LOCAL-IP src-address-list=LOCAL-IP 
+add action=mark-routing chain=prerouting connection-mark="cm-ether1-ISP1" new-routing-mark="to-ether1-ISP1" passthrough=yes dst-address-list=!LOCAL-IP src-address-list=LOCAL-IP 
+add action=mark-routing chain=prerouting connection-mark="cm-ether2-ISP2" new-routing-mark="to-ether2-ISP2" passthrough=yes dst-address-list=!LOCAL-IP src-address-list=LOCAL-IP 
+
+/ip route
+add check-gateway=ping distance=1 gateway="192.168.1.1" routing-mark="to-ether1-ISP1" comment="LoadBalance PCC by JSI-Tech Solution"
+add check-gateway=ping distance=1 gateway="192.168.1.1" routing-mark="to-ether2-ISP2" 
+add check-gateway=ping distance=1 gateway="192.168.1.1" 
+add check-gateway=ping distance=2 gateway="192.168.1.1" 
